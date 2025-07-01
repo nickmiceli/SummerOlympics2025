@@ -1,0 +1,295 @@
+<!-- leaderboard-firebase.html (Firebase version) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Olympic Podium (Firebase)</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0cbcb;
+      padding: 40px;
+      margin: 0;
+      display: flex;
+      gap: 40px;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+    #sidebar {
+      width: 360px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .box {
+      background: white;
+      border: 2px solid #004080;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    .box h2 {
+      color: #004080;
+      margin-top: 0;
+      margin-bottom: 20px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.4em;
+    }
+    #other-teams-list {
+      list-style: none;
+      padding-left: 0;
+      margin: 0;
+    }
+    #other-teams-list li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid #ddd;
+      font-weight: 600;
+      color: #003366;
+      font-size: 1.1em;
+      justify-content: flex-start;
+    }
+    #other-teams-list li span:last-child {
+      margin-left: auto;
+    }
+    #other-teams-list li span:first-child {
+      color: #cc0000;
+      font-weight: bold;
+    }
+    #upcoming-games-content ul {
+      list-style-type: disc;
+      padding-left: 24px;
+      margin: 0;
+    }
+    #upcoming-games-content li {
+      color: #004080;
+      font-weight: 600;
+      font-size: 1.1em;
+      margin-bottom: 6px;
+      position: relative;
+    }
+    #upcoming-games-content li::marker {
+      color: #cc0000;
+    }
+    #podium-container {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 350px;
+    }
+    .podium-wrapper {
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+    h1 {
+      color: #004080;
+      margin-bottom: 40px;
+    }
+    .podium {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 100px;
+      height: 850px;
+    }
+    .podium-box {
+      width: 260px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      color: white;
+      font-weight: bold;
+      border-radius: 14px 14px 0 0;
+      box-shadow: 0 10px 15px rgba(0, 0, 0, 0.25);
+      transition: all 0.3s ease;
+      padding-bottom: 25px;
+      font-size: 2em;
+    }
+    .first { background: #e6b800; height: 650px; }
+    .second { background: silver; height: 520px; }
+    .third { background: #cd7f32; height: 420px; }
+    .podium-box span { margin-bottom: 12px; }
+    .podium-box small { font-size: 1em; color: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <div class="box" id="other-teams-box">
+      <h2>Players</h2>
+      <ul id="other-teams-list"></ul>
+    </div>
+    <div class="box" id="upcoming-games-box">
+      <h2>Upcoming Games</h2>
+      <div id="upcoming-games-content">
+        <em>No upcoming games yet</em>
+      </div>
+    </div>
+  </div>
+
+  <div id="podium-container">
+    <h1>🏆 Summer Olympics 2025 🏆</h1>
+    <div class="podium-wrapper">
+      <div class="podium" id="podium"></div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://summerolympic2025-default-rtdb.firebaseio.com/",
+      projectId: "summerolympic2025",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function getSortedTally(tally) {
+      return [...tally].sort((a, b) => b.points - a.points);
+    }
+
+    function renderPodium(tally) {
+      const podium = document.getElementById("podium");
+      podium.innerHTML = "";
+      const podiumRanks = [
+        { class: "second", team: tally[1] },
+        { class: "first", team: tally[0] },
+        { class: "third", team: tally[2] }
+      ];
+      const labelMap = { first: "Gold", second: "Silver", third: "Bronze" };
+      podiumRanks.forEach(p => {
+        const wrapper = document.createElement("div");
+        wrapper.style.display = "flex";
+        wrapper.style.flexDirection = "column";
+        wrapper.style.alignItems = "center";
+        const box = document.createElement("div");
+        box.className = `podium-box ${p.class}`;
+        box.innerHTML = p.team ? `<span>${p.team.name}</span><small>${p.team.points} points</small>` : `<span>---</span><small>No Data</small>`;
+        const label = document.createElement("div");
+        label.textContent = labelMap[p.class];
+        label.style.marginTop = "8px";
+        label.style.fontWeight = "bold";
+        label.style.color = "#000";
+        wrapper.appendChild(box);
+        wrapper.appendChild(label);
+        podium.appendChild(wrapper);
+      });
+    }
+
+    function renderOtherTeams(tally) {
+      const otherTeamsList = document.getElementById("other-teams-list");
+      otherTeamsList.innerHTML = "";
+      const otherTeams = tally.slice(3);
+      if (otherTeams.length === 0) {
+        otherTeamsList.innerHTML = `<li><em>No other teams</em></li>`;
+        return;
+      }
+      otherTeams.forEach((team, index) => {
+        const li = document.createElement("li");
+        li.innerHTML = `<span>${index + 4}. </span><span>${team.name}</span><span style="margin-left:auto;">${team.points} pts</span>`;
+        otherTeamsList.appendChild(li);
+      });
+    }
+
+    function renderUpcomingGames(games) {
+      const container = document.getElementById("upcoming-games-content");
+      if (!games || games.length === 0) {
+        container.innerHTML = `<em>No upcoming games</em>`;
+        return;
+      }
+      const list = document.createElement("ul");
+      list.style.paddingLeft = "20px";
+      list.style.margin = 0;
+      games.forEach(game => {
+        const li = document.createElement("li");
+        li.textContent = game;
+        li.style.padding = "4px 0";
+        li.style.fontSize = "1.1em";
+        list.appendChild(li);
+      });
+      container.innerHTML = "";
+      container.appendChild(list);
+    }
+
+    function renderVictoryMode(data) {
+      const container = document.getElementById("podium-container");
+      const title = container.querySelector("h1");
+      const sidebar = document.getElementById("sidebar");
+      if (data?.active) {
+        title.textContent = `🎉 ${data.winner} Wins! 🎉`;
+        sidebar.style.display = "none";
+        launchConfetti();
+      } else {
+        title.textContent = "🏆 Summer Olympics 2025 🏆";
+        sidebar.style.display = "flex";
+        stopConfetti();
+      }
+    }
+
+    db.ref("teams").on("value", snapshot => {
+      const teams = snapshot.val() || [];
+      const sorted = getSortedTally(teams);
+      renderPodium(sorted);
+      renderOtherTeams(sorted);
+    });
+
+    db.ref("upcomingGames").on("value", snapshot => {
+      renderUpcomingGames(snapshot.val() || []);
+    });
+
+    db.ref("victoryMode").on("value", snapshot => {
+      renderVictoryMode(snapshot.val());
+    });
+  </script>
+
+  <canvas id="confetti-canvas" style="position:fixed;top:0;left:0;pointer-events:none;z-index:9999;"></canvas>
+  <script>
+    let confettiInterval;
+    function launchConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      let pieces = Array.from({ length: 150 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * -canvas.height,
+        size: Math.random() * 6 + 4,
+        color: `hsl(${Math.random() * 360}, 100%, 60%)`,
+        speed: Math.random() * 3 + 2
+      }));
+      confettiInterval = setInterval(() => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (let p of pieces) {
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x, p.y, p.size, p.size);
+          p.y += p.speed;
+          if (p.y > canvas.height) {
+            p.y = Math.random() * -canvas.height;
+            p.x = Math.random() * canvas.width;
+          }
+        }
+      }, 16);
+    }
+    function stopConfetti() {
+      clearInterval(confettiInterval);
+      const canvas = document.getElementById('confetti-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  </script>
+</body>
+</html>

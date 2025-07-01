@@ -1,0 +1,240 @@
+<!-- admin-firebase.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Olympics Admin Panel (Firebase)</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f0f8ff; }
+    h1, h2 { color: #004080; }
+    label { display: block; margin-top: 20px; font-weight: bold; }
+    input[type=text], input[type=number] {
+      padding: 8px; width: 250px; margin-right: 10px;
+      border-radius: 5px; border: 1px solid #ccc;
+    }
+    button {
+      padding: 8px 15px;
+      background-color: #004080; color: white;
+      border: none; border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover { background-color: #003366; }
+    ul { list-style: none; padding-left: 0; margin-top: 15px; max-width: 500px; }
+    li {
+      margin-bottom: 12px; padding: 10px 12px;
+      background: white;
+      border-radius: 6px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.1);
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 10px; flex-wrap: wrap;
+    }
+    .remove-btn {
+      background: #cc0000; border: none; color: white;
+      border-radius: 4px; padding: 5px 9px; cursor: pointer;
+      font-size: 0.9em; flex-shrink: 0;
+    }
+    .remove-btn:hover { background: #990000; }
+    .input-small { width: 70px; text-align: center; }
+    .team-name-input {
+      width: 140px; padding: 5px; border-radius: 4px;
+      border: 1px solid #ccc; font-weight: 600; color: #003366;
+    }
+    .admin-flex-container {
+      display: flex; gap: 40px; flex-wrap: wrap; margin-top: 30px;
+    }
+    .admin-box {
+      background: #ffffff; padding: 20px; border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05); flex: 1; min-width: 300px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Olympics Admin Panel</h1>
+
+  <section>
+    <h2>Victory Mode</h2>
+    <button onclick="activateVictoryMode()">Activate</button>
+    <button onclick="deactivateVictoryMode()">Deactivate</button>
+  </section>
+
+  <div class="admin-flex-container">
+    <section class="admin-box">
+      <h2>Manage Teams</h2>
+      <form id="addTeamForm">
+        <label for="teamNameInput">Add a New Team:</label>
+        <input type="text" id="teamNameInput" placeholder="Team name" required />
+        <button type="submit">Add Team</button>
+      </form>
+      <ul id="teamsList"></ul>
+    </section>
+
+    <section class="admin-box">
+      <h2>Manage Upcoming Games</h2>
+      <form id="addGameForm">
+        <label for="gameInput">Add a New Upcoming Game:</label>
+        <input type="text" id="gameInput" placeholder="Describe the game" required />
+        <button type="submit">Add Game</button>
+      </form>
+      <ul id="gamesList"></ul>
+    </section>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://summerolympic2025-default-rtdb.firebaseio.com/",
+      projectId: "summerolympic2025",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function renderTeams(teams) {
+      const list = document.getElementById("teamsList");
+      list.innerHTML = "";
+
+      if (teams.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "No teams added yet.";
+        li.style.fontStyle = "italic";
+        list.appendChild(li);
+        return;
+      }
+
+      teams.forEach((team, index) => {
+        const li = document.createElement("li");
+
+        const nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.value = team.name;
+        nameInput.className = "team-name-input";
+        nameInput.addEventListener("change", () => {
+          team.name = nameInput.value.trim() || team.name;
+          db.ref("teams").set(teams);
+        });
+
+        const pointsInput = document.createElement("input");
+        pointsInput.type = "number";
+        pointsInput.min = 0;
+        pointsInput.value = team.points;
+        pointsInput.className = "input-small";
+        pointsInput.addEventListener("change", () => {
+          const val = parseInt(pointsInput.value);
+          if (!isNaN(val) && val >= 0) {
+            team.points = val;
+            db.ref("teams").set(teams);
+          } else {
+            pointsInput.value = team.points;
+          }
+        });
+
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "Remove";
+        removeBtn.className = "remove-btn";
+        removeBtn.addEventListener("click", () => {
+          if (confirm(`Remove team "${team.name}"?`)) {
+            teams.splice(index, 1);
+            db.ref("teams").set(teams);
+          }
+        });
+
+        li.appendChild(nameInput);
+        li.appendChild(pointsInput);
+        li.appendChild(removeBtn);
+        list.appendChild(li);
+      });
+    }
+
+    function renderGames(games) {
+      const list = document.getElementById("gamesList");
+      list.innerHTML = "";
+
+      if (games.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "No upcoming games added.";
+        li.style.fontStyle = "italic";
+        list.appendChild(li);
+        return;
+      }
+
+      games.forEach((game, index) => {
+        const li = document.createElement("li");
+        li.textContent = game;
+
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = "Remove";
+        removeBtn.className = "remove-btn";
+        removeBtn.addEventListener("click", () => {
+          if (confirm(`Remove upcoming game "${game}"?`)) {
+            games.splice(index, 1);
+            db.ref("upcomingGames").set(games);
+          }
+        });
+
+        li.appendChild(removeBtn);
+        list.appendChild(li);
+      });
+    }
+
+    db.ref("teams").on("value", snapshot => {
+      const teams = snapshot.val() || [];
+      renderTeams(teams);
+    });
+
+    db.ref("upcomingGames").on("value", snapshot => {
+      const games = snapshot.val() || [];
+      renderGames(games);
+    });
+
+    document.getElementById("addTeamForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const input = document.getElementById("teamNameInput");
+      const name = input.value.trim();
+      if (name) {
+        db.ref("teams").once("value").then(snapshot => {
+          const teams = snapshot.val() || [];
+          if (teams.some(t => t.name.toLowerCase() === name.toLowerCase())) {
+            alert("A team with this name already exists.");
+            return;
+          }
+          teams.push({ name, points: 0 });
+          db.ref("teams").set(teams);
+          input.value = "";
+        });
+      }
+    });
+
+    document.getElementById("addGameForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const input = document.getElementById("gameInput");
+      const game = input.value.trim();
+      if (game) {
+        db.ref("upcomingGames").once("value").then(snapshot => {
+          const games = snapshot.val() || [];
+          games.push(game);
+          db.ref("upcomingGames").set(games);
+          input.value = "";
+        });
+      }
+    });
+
+    function activateVictoryMode() {
+      db.ref("teams").once("value").then(snapshot => {
+        const teams = snapshot.val() || [];
+        const sorted = [...teams].sort((a, b) => b.points - a.points);
+        const winner = sorted[0]?.name || "Winner";
+        db.ref("victoryMode").set({ active: true, winner });
+      });
+    }
+
+    function deactivateVictoryMode() {
+      db.ref("victoryMode").set({ active: false });
+    }
+  </script>
+</body>
+</html>
